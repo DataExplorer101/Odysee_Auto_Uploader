@@ -20,7 +20,7 @@ from tkinter import filedialog as fd
 
 ##This function is called by 'songPartAlreadyonOdysee'
 def videoalreadyloaded(sFileName,browser):
-
+    print("Fourth function: "+sFileName) 
     ##a video name should never end with an underscore so remove it if it exists:
     if sFileName.endswith("_"):
         sFileName = sFileName.rstrip(sFileName[-1])
@@ -28,10 +28,36 @@ def videoalreadyloaded(sFileName,browser):
     ##a video name should never end with a dash so remove it if it exists:
     if sFileName.endswith("-"):
         sFileName = sFileName.rstrip(sFileName[-1])
+
+    ##Remove any line breaks too:
+    sFileName.replace('\r', '').replace('\n', '')
+
+
+    sFileName = ''.join(sFileName.splitlines())
+                    
+    sFileName = sFileName.replace("â","")
+    sFileName = sFileName.replace("€","")
+    sFileName = sFileName.replace("“","")
+
+    ##dont check any file names that are less than 10 characters, they are usally not real matches anyway
+    if len(sFileName) < 12:
+        return False
+    
         
     browser.get('https://odysee.com/'+sFileName)
 
-    if (browser.title != "Odysee"):
+    print("browser title: "+browser.title+"|")
+    print("Looking for:" + sFileName+"|")
+
+    time.sleep(1)
+    nCount = 0
+    while sFileName == browser.title and nCount < 5:
+        print("waiting for page to load")
+        time.sleep(0.5)
+        browser.get('https://odysee.com/'+sFileName)
+        nCount = nCount+1
+    
+    if (str(browser.title) != "Odysee" and str(browser.title) != sFileName):
         print(sFileName+" is on Odysee already")
         return True
     else:
@@ -40,7 +66,7 @@ def videoalreadyloaded(sFileName,browser):
 
 ##This function is called by 'songAlreadyonOdyseeAllowForYear'   
 def songPartAlreadyonOdysee(sFileName,browser):
-        
+    print("Third function: "+sFileName) 
     ##There are 2 common ways someone could upload a song:
 
     ##1) with spaces replaced by dashes:
@@ -49,21 +75,80 @@ def songPartAlreadyonOdysee(sFileName,browser):
     if videoalreadyloaded(sFileName1,browser):
             return True
 
+     ##1b) with spaces replaced by dashes and then 3 dashes replaced by 1 dash:
+    if sFileName1.__contains__("---"):
+        sFileName1b = sFileName1.replace("---","-")
+    
+        if videoalreadyloaded(sFileName1b,browser):
+            return True
+
+        ##1c) with spaces replaced by dashes and then 3 dashes replaced by 4 dashes:
+        sFileName1c = sFileName1.replace("---","----")
+    
+        if videoalreadyloaded(sFileName1c,browser):
+                return True
+      
+    ##1d)Lets try something else, what if there are no spaces between the dashes, so try replacing any dashes with 3 dashes:
+    if sFileName.__contains__("-"):
+        sFileName1 = sFileName.replace("-","---")
+        sFileName1 = sFileName1.replace(" ","-")
+        if videoalreadyloaded(sFileName1,browser):
+            return True
+
+    ##exact same as above but replace 1 dash with 2 dashes:
+        sFileName1 = sFileName.replace("-","--")
+        sFileName1 = sFileName1.replace(" ","-")
+        if videoalreadyloaded(sFileName1,browser):
+            return True
+        
     ##2) with all spaces and dashes simply removed from the file (to take advantage of claiming the top spot of the most common search method)
     sFileName1 = sFileName.replace(" ","")
+ 
     sFileName2 = sFileName1.replace("-","")
+
+
+
+    sFileName2 = sFileName2.replace("*","")
+    sFileName2 = sFileName2.replace("|","")
+    sFileName2 = sFileName2.replace(":","")
+    sFileName2 = sFileName2.replace('"',"")
+    sFileName2 = sFileName2.replace("?","")
+    sFileName2 = sFileName2.replace("_","")
+    sFileName2 = sFileName2.replace("/","")
+    sFileName2 = sFileName2.replace("`","")
+    sFileName2 = sFileName2.replace(".","")
+    sFileName2 = sFileName2.replace("â","")
+    sFileName2 = sFileName2.replace("€","")
+    sFileName2 = sFileName2.replace("“","")
+    sFileName2 = sFileName2.replace("!","")
+    sFileName2 = sFileName2.replace("'","")
+    sFileName2 = sFileName2.replace("Classics: ","")
+    sFileName2 = sFileName2.replace("Classics - ","")
+##    Remove accents:
+    sFileName2 = removeAccents(sFileName2)
    
     if videoalreadyloaded(sFileName2,browser):
             return True
 
-    ##if it passes this far then the file is not on odysee:
-    
+    ##)2b) if that did not return true then also try removing any leading "the" (ie TheBeatlesHelp => BeatlesHelp)
+    if (sFileName2[0:3]).lower() == "the":
+        sFileName3 = sFileName2[3:]
+        if videoalreadyloaded(sFileName3,browser):
+                return True
+
+    ##2c) try replacing & with and:
+    if sFileName2.__contains__("&"):
+        sFileName2 = sFileName2.replace("&","and")
+        if videoalreadyloaded(sFileName2,browser):
+            return True
+
+    ##if it passes this far then the file is not on odysee:    
     return False
 
 ##This function is called by 'songAlreadyonOdysee'  
 def songAlreadyonOdyseeAllowForYear(sFileName,browser):
     ##Song titles on youtube/odysee usualy either contain the year or they dont, lets check for both possibilities:
-
+    print("Second function: "+sFileName)
     ##1) First check the more common scenario (without a year):
     if songPartAlreadyonOdysee(sFileName,browser):
         return True
@@ -76,35 +161,66 @@ def songAlreadyonOdyseeAllowForYear(sFileName,browser):
 
     if len(splitParts) > 1:
         
-        if songPartAlreadyonOdysee(splitParts[0],browser):
+        if songPartAlreadyonOdysee(splitParts[0].strip(),browser):
             return True        
+
+    splitParts = sFileName.split("[")
+
+    if len(splitParts) > 1:
+        
+        if songPartAlreadyonOdysee(splitParts[0].strip(),browser):
+            return True
+        
     ##if it passes this far then the file is not on odysee:
       
     return False
 
 def songAlreadyonOdysee(sFileName,browser):
 
+    print("First function: "+sFileName)
     ##Most songs are titled either as the track title or artist - track title, so lets check for both:
 
+    ##First we need to replace a ~ with a - because that is what Odysee does
+    sFileName = sFileName.replace("~","-")
+
+    
     ##1)Check for artist - song title:
     if songAlreadyonOdyseeAllowForYear(sFileName,browser):
         return True
 
     ##2)Now Check just song title:
     ##first split the song name from the artist
-    splitParts = sFileName.split(" - ")
+    splitParts = sFileName.split("-")
 
     if len(splitParts) > 1:
-        if songAlreadyonOdyseeAllowForYear(splitParts[1],browser):
+        if songAlreadyonOdyseeAllowForYear(splitParts[1].strip(),browser):
+            return True
+        ##also try flipping the artist and title around (i.e. title - artist)
+        sPotentialArtistName = getLeftofAllBrackets(splitParts[1].strip())
+        sFileNameReOrdered = sPotentialArtistName.strip()+" - "+splitParts[0]
+        if songPartAlreadyonOdysee(sFileNameReOrdered,browser):
             return True
 
     ##if we get this far then we have checked everything:
     return False
 
+def getLeftofAllBrackets(sFileName):
+
+    splitParts = sFileName.split("(")
+
+    if len(splitParts) > 1:        
+        sFileName = splitParts[0]
+            
+    splitParts = sFileName.split("[")
+
+    if len(splitParts) > 1:      
+        sFileName = splitParts[0]
+
+    return sFileName
 
 def selectChannel(iChannelNum):
 
-    time.sleep(5)
+    time.sleep(4)
     keyboard = Controller()
     
     keyboard.press(Key.tab)
@@ -122,17 +238,38 @@ def selectChannel(iChannelNum):
     keyboard.press(Key.enter)
     keyboard.release(Key.enter)
 
-    time.sleep(0.2)
+    time.sleep(0.3)
     
     for x in range(iChannelNum-1):
         keyboard.press(Key.down)
         keyboard.release(Key.down)
-        time.sleep(0.2)
+        time.sleep(0.5)
 
     keyboard.press(Key.enter)
     keyboard.release(Key.enter)
- 
 
+
+def removeAccents(sFileName):
+##    á é í ó ú
+##    Á É Í Ó Ú
+    sFileName = sFileName.replace("á","a")
+    sFileName = sFileName.replace("é","e")
+    sFileName = sFileName.replace("í","i")
+    sFileName = sFileName.replace("ó","o")
+    sFileName = sFileName.replace("ú","u")
+    sFileName = sFileName.replace("Á","A")
+    sFileName = sFileName.replace("É","E")
+    sFileName = sFileName.replace("Í","I")
+    sFileName = sFileName.replace("Ó","O")
+    sFileName = sFileName.replace("Ú","U")
+    return sFileName
+    
+
+def MovebyTabs(nNumTabs):
+    for x in range(nNumTabs):
+        keyboard.press(Key.tab)
+        keyboard.release(Key.tab)
+    
 keyboard = Controller()
 
 Number_of_Times_to_Scroll1 = 0
@@ -156,6 +293,8 @@ LOGIN_EMAIL = input()
 while LOGIN_EMAIL == "BLANK":
     time.sleep(0.5)
 
+
+
 print("What is your Odysee password? (I promise this will not be recorded outside of using this program)")
 LOGIN_PW = getpass()
 while LOGIN_PW == "BLANK":
@@ -170,26 +309,41 @@ print("What video do you want to end at? If you're not sure how many videos ther
 video_end = int(input())
 while video_end == -1:
     time.sleep(0.5)
-
+##video_end = 72
+    
 print("Where is your song playlist file?")
 song_file = input()
 while song_file == "BLANK":
     time.sleep(0.5)
+
+
 
 print("What is the folder that your video, thumbnail,and description files located?")
 STUFF = input()
 while STUFF == "BLANK":
     time.sleep(0.5)
 
+
+
 print("Please show me where your webdriver is located, including the file name.")
 path = input()
 while path == "BLANK":
     time.sleep(0.5)
 
+##path = "C:\chromedriver.exe"
+
 print("What is your channel number (as ordered in the channel drop-down box when you upload a video?")
 iChNum = int(input())
 while iChNum == -1:
     time.sleep(0.5)
+##iChNum = 1
+
+
+print("Enter up to 5 comma seperated tags:")
+sTags = input()
+while sTags == "BLANK":
+    time.sleep(0.5)
+
 
 
 driver = webdriver.Chrome(path)
@@ -216,8 +370,11 @@ while True:
         break
 
 
-
-songs = open(str(song_file))
+driver.get("https://odysee.com/$/upload")
+##Select channel
+selectChannel(iChNum)
+                
+songs = open(str(song_file),"r",encoding="utf-8",errors='ignore')
 
 now = datetime.now()
 today = date.today()
@@ -225,12 +382,13 @@ today = date.today()
 f_loc = r"C:\Users\garet\Videos\odyseeBot\Uploadathon_Log_On_Date:"
 
 Current_Time = today.strftime("%d_%m_%Y")+"_With_Time"+now.strftime("%H%M%S")
-LOG_FILE = open("Uploadathon_Log_On_Date"+str(Current_Time)+".txt", "x") # MAKE THE LOG FILE. THIS IS FUCKING IMPORTANT.
+
 
 
 Song_Number = 0
 for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET TO VARIABLES SO WE CAN TYPE THEM IN
     line_num += 1 # Keep track of what line we're on.
+    
     if str("Now playing") in line:
         
         video_number += 1 # Keep track of what video we're on by using a string that appears once per video.
@@ -239,14 +397,15 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
     if video_number >= video_start and video_number <= video_end: # We want to increase the video number always so we know where we are, but only actually upload if the video number is within specifications.
         
         if str("Now playing") in line:
-            print("old open here")
+            print("Old open here")
+           
                        
                         
                         ##driver.get("https://odysee.com/$/upload")
                         # The string "Now playing" occurs exactly once per video, so it's a good marker for going to the upload page.
                                           
         if LOOK_FOR_TITLE == 1 and str('      <https://www.youtube.com/watch?v=') in line: # IF THE URL IS THERE, GET THE PART OF IT. THIS ALSO TELLS US THAT THE TITLE IS DONE SO UNFLAG THE VARIABLE TO STOP GETTING TITLE.
-            print(title)
+            
             
             URL_PART_1 = line.partition('watch?v=')[2]
             URL_PART_2 = URL_PART_1.partition('&list=')[0]
@@ -257,7 +416,7 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
             Start_Upload = line_num + 6 # SINCE WE'RE DONE WITH THE TITLE AND HAVE THE URL, IT'S OKAY TO FLAG THIS NUMBER SO ON THE NEXT LINE WE CAN ACTUALLY START UPLOADING.
 
         if LOOK_FOR_TITLE == 1 and str('      <https://www.youtube.com/watch?v=') not in line:# and line != str("\n"):  # IF THE URL IS NOT THERE, KEEP GETTING THE TITLE FOR THE UPLOAD TITLE AND DO NOT FLAG THE VARIABLE TO STOP IT
-            print(str(title))
+            
             
             if line != "\n":
                 if title == "":
@@ -281,56 +440,126 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
             Channel_Name = str(line)
 
            
-            print("Title is: "+title)  
+            print("title we are going to check is "+title)
              ##This is where we will check if the video has already been uploaded, we will be using the video title and youtube URL code for this:
-            if songAlreadyonOdysee(title.replace("      ", ""),driver) == False and videoalreadyloaded(URL_PART_2,driver) == False:
+            if songAlreadyonOdysee(title.replace("      ", "").replace("/",""),driver) == False and videoalreadyloaded(URL_PART_2,driver) == False:
+                time.sleep(1)
                 driver.get("https://odysee.com/$/upload")
-                ##Select channel
-                selectChannel(iChNum)
+    
+                sFileName = title.replace(" ","")
+
+              
+                
+                sFileName = sFileName.replace("-","")
+                sFileName = sFileName.replace("-","")
+                sFileName = sFileName.replace("*","")
+                sFileName = sFileName.replace("|","")
+                sFileName = sFileName.replace(":","")
+                sFileName = sFileName.replace('"',"")
+                sFileName = sFileName.replace("?","")
+                sFileName = sFileName.replace("_","")
+                sFileName = sFileName.replace("/","")
+                sFileName = sFileName.replace("`","")
+                sFileName = sFileName.replace(".","")
+                sFileName = sFileName.replace("â","")
+                sFileName = sFileName.replace("€","")
+                sFileName = sFileName.replace("“","")               
+                sFileName = sFileName.replace("'","")
+                sFileName = sFileName.replace(",","")
+                sFileName = sFileName.replace("!","")
+                sFileName = sFileName.replace("&","and")
+                sFileName = sFileName.replace("~","")
+                sFileName = sFileName.replace("|","")
+                sFileName = sFileName.replace("Classics","")
+                sFileName = removeAccents(sFileName)
+
+                
+
+                
+
+                splitParts = sFileName.split("(")
+                
+                if len(splitParts) > 1:
+                    sFileName = splitParts[0]
+
+
+                splitParts = sFileName.split("[")
+                
+                if len(splitParts) > 1:
+                    sFileName = splitParts[0]
+                
+                nCount = 0
                 #At this point, we have all the necessary variables for the video, so start inputting them into Odysee.
                 while True:# Input URL
                     try:
                         print("Entering File name")
-                        URL_Field = driver.find_element_by_id("content_name")
+                        print(title)
+                        ##URL_Field = driver.find_element_by_id("content_name")
+                        URL_Field = driver.find_element_by_xpath("/html/body/div/div/div/div/main/div/section[1]/div/div[2]/fieldset-group/fieldset-section[2]/input")
+                        print("Found Control")
                         ##-----------------------------This is where the file name gets added-----------------------------------:
                         ##Hydraulic Hydra was uploading videos using the youtube URL, the problem with that is it does not take advantage of odysee's claim system to get the top search result for search terms, we will be using the video title with spaces removed:
                         ##Remove all spaces in title:
-                        sFileName = title.replace(" ","")
-                        sFileName = sFileName.replace("-","")
-                        sFileName = sFileName.replace("*","")
-                        sFileName = sFileName.replace("|","")
-                        sFileName = sFileName.replace(":","")
-                        sFileName = sFileName.replace('"',"")
-                        sFileName = sFileName.replace("?","")
-                        sFileName = sFileName.replace("_","")
-
-                        splitParts = sFileName.split("(")
-                
-                        if len(splitParts) > 1:
-                            sFileName = splitParts[0]
+                        
+                        
                         
                         URL_Field.send_keys(sFileName) #this is the part of the URL used in a URL search, present so such a search will return the vid being uploaded.
                     except:
                         time.sleep(1.0)
+                        nCount = nCount+1
+
+##                        if nCount > 3:
+##                            MovebyTabs(7)
+##                            keyboard.type(sFileName)
+                        
+##                            break
+                        
                     else:
                         break
                 Loop_Toggle = 0
                 time.sleep(1)
 
+                title = title.replace("      ", "") # So we don't have extra space in our title.               
+                title2 = title.replace("â","")
+                title2 = title2.replace("€","")
+                title2 = title2.replace("“","")
+                title2 = title2.replace(".wmv","")
+                title2 = title2.replace(".mp4","")
+                title2 = title2.replace(".AVI","")
+                title2 = title2.replace("(Official Audio)","")
+                title2 = title2.replace("(Remastered in 4K)","")
+                title2 = title2.replace("[HD]","")
+                title2 = title2.replace("[HQ]","")
+               
+                                  
+                nCount = 0
                 while Loop_Toggle == 0:# Get THE TITLE IN THE TITLE FIELD
                     try:
-                        Title_Field = driver.find_element_by_id('content_title')
+                        ##Title_Field = driver.find_element_by_id('content_title')
+                        Title_Field = driver.find_element_by_xpath('/html/body/div/div/div/div/main/div/section[1]/div/div[2]/fieldset-section[1]/input')
+                        time.sleep(1.5)
+                        Title_Field.send_keys(str(title2)) 
+                
+##                        Title_Field.send_keys(Keys.SPACE)
+##                        Title_Field.send_keys(Keys.BACKSPACE)
+##                        keyboard = Controller()
+##                        keyboard.type(str(title))
                     except:
                         time.sleep(1.0)
+                        nCount = nCount+1
+
+##                        if nCount > 3:
+##                            time.sleep(0.5)
+##                            MovebyTabs(1)
+##                            time.sleep(1.5)
+##                            keyboard.type(str(title))
+##                            break
+                        
                     else:
                         Loop_Toggle = 1
+
                 Loop_Toggle = 0
-                time.sleep(1)
-                title = title.replace("      ", "") # So we don't have extra space in our title.
-                Title_Field.send_keys(Keys.SPACE)
-                Title_Field.send_keys(Keys.BACKSPACE)
-                keyboard = Controller()
-                keyboard.type(str(title))
+                
 
             # CONVERT TITLE TO WHAT THE FILE WILL BE CALLED SO WE CAN SEARCH.
                 # We already got rid of instances of 6 white space created as an artifact from saving the playlist as .txt.
@@ -338,24 +567,38 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
                 # Also replace all slashes in the title with underlines because that's what youtube-DL did when saving to avoid error.
                 # This pertains to Youtube-DL's file naming artifacts.
                 # Actually, only convert if the default title is unacceptable.
-
-
+               
                 video_filename = str(title)
                 Loop_Toggle = 1
                 print(str(video_filename[len(video_filename)-1]))
-                print("Title is "+title)
-                print("File Name is "+video_filename)
+                
                 print("Starting naming convention")
+                nCounter = 0
                 while True:
                     for file in os.listdir(str(STUFF)):
                         if str(video_filename) in file and str(".mp4") in file and str(".mp4_") not in file and str(".jpg") not in file:
                             print("Found it!")
                             video_filename = str(file)
                             Loop_Toggle = 0
+                        else:
+                            ##if you cant find it by exact match, try removing all spaces from both files and see if we can find it:
+                            file2 = file.replace(" ","")
+                            video_filename2 = video_filename.replace(" ","")
+                            if str(video_filename2) in file2 and str(".mp4") in file2 and str(".mp4_") not in file2 and str(".jpg") not in file2:
+                                print("Found it!")
+                                video_filename = str(file)
+                                Loop_Toggle = 0
                     if Loop_Toggle == 1:
-                        print("Modifying filename as variant of title")
+                        nCounter=nCounter+1
+                        ##perhaps skip out after 20 tries:
+                        
+                        print("Modifying filename as variant of title for video # " + str(video_number))
                         video_filename = video_filename.replace('/', '_')
-                        video_filename = video_filename.replace("\n", "")
+                        
+                        video_filename.replace('\r', '').replace('\n', '')
+
+                        video_filename = ''.join(video_filename.splitlines())
+                        
                         if video_filename[len(video_filename)-1] == "*" or video_filename[len(video_filename)-1] == str("|"):
                             print("Yes, final character is asterisk")
                             video_filename = video_filename[0:(len(video_filename)-1)]#This while loop is because if the final character is a | or a *
@@ -373,6 +616,8 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
                         video_filename = video_filename.replace('"', "'")
                         video_filename = video_filename.replace("?", "")
                         video_filename = video_filename.replace("__", "_")
+                        video_filename = video_filename.replace("â","")
+                        video_filename = video_filename.replace("€","-")
                         print('String is:')
                         print(str(video_filename))
                         #print(video_filename)
@@ -404,17 +649,45 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
 
                 time.sleep(2)
                 keyboard = Controller()
-                keyboard.press(Key.ctrl)
-                keyboard.press('l')
-                keyboard.release('l')
-                keyboard.release(Key.ctrl)
-                time.sleep(0.5)
-                print(str(STUFF)+str(video_filename))
+                ##Try a simpler approach:
                 keyboard.type(str(STUFF)+str(video_filename))
-                time.sleep(0.5)
-##                time.sleep(7200)
+                time.sleep(0.2)
                 keyboard.press(Key.enter)
                 keyboard.release(Key.enter)
+                
+                
+##                keyboard.press(Key.ctrl)
+##                keyboard.press('l')
+##                keyboard.release('l')
+##                keyboard.release(Key.ctrl)
+##                time.sleep(0.5)
+##                print(str(STUFF)+str(video_filename))
+####                
+##                keyboard.type(str(STUFF))
+##                time.sleep(0.2)
+##                keyboard.press(Key.enter)
+##                keyboard.release(Key.enter)
+##                time.sleep(0.2)
+##                ##Try 5 tabs:
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.type(str(video_filename))
+##                time.sleep(2)
+##                keyboard.press(Key.enter)
+##                keyboard.release(Key.enter)
                 time.sleep(0.5)
                 #FIND DESCRIPTION AND CHECK THAT OUT
 
@@ -428,35 +701,37 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
                         time.sleep(1.0) #I think what's happening here is Description_Field exists without being interactable. So it passes to the else
                     else:
                         break
-                while True:
-                    try:
-                        Description_Field.send_keys("This was uploaded by an AI. Original URL was/is: ")
-                    except:
-                        #keyboard.press(Key.enter)
-                        #keyboard.release(Key.enter)
-                        print('delaying for some reason')
-                        time.sleep(1.0)
-                    else:
-                        break
-                while True:
-                    try:
-                        keyboard.type(str(Original_URL) + "\n\n Original uploader name was/is: " + str(Channel_Name) + "\n\nOriginal uploader's channel's URL was/is: " + str(Channel_URL) + "\n\n Original, title, and thumbnail have been typed and uploaded here. Original description was/is:\n")
-                    except:
-                        print('delaying for some reason')
-                        time.sleep(1.0)    #and then fails it. Solution: Simply have the else *as* the try and loop until it goes through. Do that tomorrow.
-                    else:
-                        break
+##                while True:
+##                    try:
+##                        Description_Field.send_keys("")
+##                    except:
+##                        #keyboard.press(Key.enter)
+##                        #keyboard.release(Key.enter)
+##                        print('delaying for some reason')
+##                        time.sleep(1.0)
+##                    else:
+##                        break
+##                while True:
+##                    try:
+##                        keyboard.type("")
+##                    except:
+##                        print('delaying for some reason')
+##                        time.sleep(1.0)    #and then fails it. Solution: Simply have the else *as* the try and loop until it goes through. Do that tomorrow.
+##                    else:
+##                        break
                 Loop_Toggle = 0
 
                 video_filename = video_filename.partition(".mp4")[0]
-                current_file = open("/home/wind/TEST/STUFF/"+str(video_filename)+".description", "r")
+                current_file = open(STUFF+str(video_filename)+".description", "r",encoding="utf-8",errors='ignore')
                 print(str(current_file))
                 for line in current_file:
                     while True:
                         try:
-                            Description_Field = driver.find_element_by_id("content_description")
-                            Description_Field.send_keys(str(line))
-                            Description_Field.send_keys(Keys.RETURN)
+                            print("Line is:" + line + ".")
+                            if (line.lower().__contains__("youtube") == False and line != "/n" and line != ""):
+                                Description_Field = driver.find_element_by_id("content_description")
+                                Description_Field.send_keys(str(line))
+                                Description_Field.send_keys(Keys.RETURN)
                         except:
                             print('Description_Field not interactable, delaying')
                             time.sleep(1.0)
@@ -467,7 +742,7 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
 
 
                 #UPLOAD THUMBNAIL
-                also_path = "file:///home/wind/TEST/STUFF/"
+                also_path = STUFF
                 video_filename = video_filename.partition(".description")[0]
                 for file in os.listdir(str(STUFF)):
                     if str(video_filename) in file and str(".mp4_3.jpg") in file:
@@ -531,15 +806,51 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
             #       keyboard.release(Key.enter)
 
                 time.sleep(0.5)
-                keyboard.press(Key.ctrl)
-                keyboard.press('l')
-                keyboard.release('l')
-                keyboard.release(Key.ctrl)
+
+                ##Try a simpler approach:
                 keyboard.type(str(STUFF)+str(video_filename))
-                print(str(STUFF)+str(video_filename))
-                time.sleep(1)
+                time.sleep(0.2)
                 keyboard.press(Key.enter)
                 keyboard.release(Key.enter)
+
+                
+##                keyboard.press(Key.ctrl)
+##                keyboard.press('l')
+##                keyboard.release('l')
+##                keyboard.release(Key.ctrl)
+##                ##keyboard.type(str(STUFF)+str(video_filename))
+##                keyboard.type(str(STUFF))
+##                time.sleep(0.5)
+##                keyboard.press(Key.enter)
+##                keyboard.release(Key.enter)
+##                time.sleep(1)
+##                ##Try 5 tabs:
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.press(Key.tab)
+##                keyboard.release(Key.tab)
+##                time.sleep(2.5)
+##                keyboard.type(str(video_filename))
+##                time.sleep(3)
+##                keyboard.press(Key.enter)
+##                keyboard.release(Key.enter)
+                time.sleep(0.5)
+
+                
+##                print(str(STUFF)+str(video_filename))
+##                time.sleep(1)
+##                keyboard.press(Key.enter)
+##                keyboard.release(Key.enter)
 
 
                 time.sleep(1)
@@ -565,6 +876,29 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
             #       keyboard.release(Key.enter)
             #       time.sleep(0.5)
 
+
+##            /html/body/div/div/div/div/main/div/div[2]/section[3]/div/div[2]/form/fieldset-section/fieldset-section/input
+            ##Input tags:
+
+                sSplitTags = sTags.split(",")
+                
+                while True:
+                    try:
+                        tagBox = driver.find_element_by_xpath("/html/body/div/div/div/div/main/div/div[2]/section[3]/div/div[2]/form/fieldset-section/fieldset-section/input")
+                        
+                        for x in range(len(sSplitTags)):
+                            tagBox.send_keys(sSplitTags[x].strip())
+                            time.sleep(0.5)
+                            tagBox.send_keys(Keys.ENTER)
+                            time.sleep(0.5)
+                    #       print(str(Song_Number))
+                        time.sleep(0.5)
+                    except:
+                        time.sleep(1.0)
+                    else:
+                        break
+
+            
 
             #Input Deposit
                 while True:
@@ -638,7 +972,7 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
                     else:
                         Loop_Toggle = 1
                         print("okay we're at the end of the loop")
-                        LOG_FILE.write('Video "'+str(title)+'" successfully uploaded! \n \n \n')
+                        
                         break
                 Loop_Toggle = 0
         #Go to the uploads page so we know it's working (and to HOPEFULLY void the thing there the info for the last vid is still there)
@@ -652,7 +986,7 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
         #           else:
         #               Loop_Toggle = 1
 
-                    # OKAY GOYIMS THE NEXT STEP IS TO ADD A THING WHERE WHEN IT'S TYPING THE DESCRIPTION IF THE CHARACTER
+                    # OKAY THE NEXT STEP IS TO ADD A THING WHERE WHEN IT'S TYPING THE DESCRIPTION IF THE CHARACTER
                     # IS UNSUPPORTED BY WEBDRIVER THEN IT SAYS [UNSUPPORTED CHARACTER: UNICODE = "xxxxx"] WHERE "xxxxx" IS
                     # EQUAL TO WHATEVER TEH UNICODE OF THE UNSUPPORTED CHARACTER IS.
 
@@ -666,19 +1000,19 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
         #       keyboard.release(Key.enter)
         #       time.sleep(10)
         #       driver.quit()
-        #               print("\n\n\n\n\n\n OKAY GOYIMS WE'RE DONE WITH THAT FIRST FILE'S DESCRIPTION!!")
+        #               print("\n\n\n\n\n\n OKAY  WE'RE DONE WITH THAT FIRST FILE'S DESCRIPTION!!")
                     # OKAY BOIS NEXT TIME WE'RE GOING TO GO ADD A THING WHERE IT CLICKS THE DESCRIPTION AND ADDS THE LINE TO IT
-                    # ALSO REMOVE THE LNE ABOUT GOYIMS BECAUSE THAT'S NOT ACCURATE TO THE DESCRIPTION (and if it is it would 
+                    # ALSO REMOVE THE LNE ABOUT  BECAUSE THAT'S NOT ACCURATE TO THE DESCRIPTION (and if it is it would 
                     # still render the description inaccurate because it would be redundant since the top line would cover it 
                     # and then we'd have one more line containing that phrase in the description than is supposed to be there.
 
-        # OKAY GOYIMS GREAT NEWS! The XPATH for the "success" message after upload *should* be done is
+        # OKAY  GREAT NEWS! The XPATH for the "success" message after upload *should* be done is
         #       /html/body/div[4]/div/div/section/div/div[1]/div[1]/div/h2
         # Without the spaces or hashtag, ofc
 
-        # OKAY GOYIMS IT SEEMS TO HAVE HAVING ISSUES GETTING SECONDARY BUTTONS BUT WE'LL WORRY ABOUT THAT LATER
+        # OKAY  IT SEEMS TO HAVE HAVING ISSUES GETTING SECONDARY BUTTONS BUT WE'LL WORRY ABOUT THAT LATER
 
-        # OKAY GOYIMS THE PROBLEM WITH THE DESCRIPTION FIELD IN ODYSEE IS THAT YOU GOTTA UPLOAD A FILE FIRST. SO DO THAT MY DUDE!!!!!!!
+        # OKAY  THE PROBLEM WITH THE DESCRIPTION FIELD IN ODYSEE IS THAT YOU GOTTA UPLOAD A FILE FIRST. SO DO THAT MY DUDE!!!!!!!
 
         #       youtube-dl -f, --write-all-thumbnails --write-description --format mp4 https://www.youtube.com/playlist?list=PL1DX5hVfxc_f18xRVIyqfP-hdybOboPNz 
 
@@ -728,3 +1062,4 @@ for line in songs:  # GET THE FILE CONTAINING ALL OUR SONG TITLES + URLS AND SET
 
         #   print(getframeinfo(currentframe()))
         #   - this is a cool function. Keep it around for later.
+
